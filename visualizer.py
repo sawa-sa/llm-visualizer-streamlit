@@ -9,12 +9,13 @@ def plot_topk(
     chosen: int,
     top_k: int,
     temperature: float,
+    title: str = "Top-K Distribution"
 ):
     fig, ax = plt.subplots(figsize=(6, 4))
     colors = ["#e63946" if i == chosen else "#457b9d" for i in ids]
     ax.barh(tokens[::-1], values[::-1], color=list(reversed(colors)))
     xlabel = "Logit Score" if temperature < 1e-5 else "Probability"
-    ax.set_title(f"Top-{top_k} Candidates ({xlabel})", pad=12)
+    ax.set_title(title)
     ax.set_xlabel(xlabel)
     ax.invert_yaxis()
     mn, mx = min(values), max(values)
@@ -26,7 +27,7 @@ def plot_topk(
         ax.set_xlim(mn - abs(mn) * 0.1, mx + abs(mx) * 0.1)
     return fig
 
-def plot_attention(attn: np.ndarray, tokens: List[str]):
+def plot_attention(attn: np.ndarray, tokens: List[str], title: str = "Average"):
     """
     Attention ヒートマップ:
     正方形表示し、右上三角部分（j >= i）を灰色で置き換え、
