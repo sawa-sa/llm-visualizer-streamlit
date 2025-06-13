@@ -5,6 +5,7 @@ from model_loader import load_model
 from generator import generate_step
 from visualizer import plot_topk, plot_attention
 
+# ─── セッション状態の初期化 ───────────────────────────────
 if "input_ids" not in st.session_state:
     st.session_state.input_ids = None
 if "generated_tokens" not in st.session_state:
@@ -19,18 +20,34 @@ if "prompt_initialized" not in st.session_state:
     st.session_state.prompt_initialized = False
 if "head_select" not in st.session_state:
     st.session_state.head_select = "Average"
+if "lock_params" not in st.session_state:
+    st.session_state.lock_params = False
 
+# ─── モデルロード ─────────────────────────────────────────
 model, tokenizer = load_model()
 
+# ─── UI: 探索モードとロック判定 ─────────────────────────────
 explore_mode = st.checkbox(
     "🔀 探索モード: 途中でパラメータ変更を許可",
     value=False,
     help="オフにすると生成開始後に全パラメータをロックします"
 )
-generation_started = (len(st.session_state.steps) > 0) and not explore_mode
+generation_started = st.session_state.lock_params and not explore_mode
 
 st.title("🔍 GPT-2 Medium 可視化デモ")
 
+# ─── プロンプト初期化のコールバック ─────────────────────────
+def init_prompt():
+    ss = st.session_state
+    ss.input_ids = tokenizer.encode(ss.prompt, return_tensors="pt")
+    ss.generated_tokens = []
+    ss.steps = []
+    ss.step_index = 0
+    ss.prompt_initialized = False
+    ss.head_select = "Average"
+    ss.lock_params = False
+
+# プロンプト選択＆入力
 example_prompt = st.selectbox(
     "🧪 試してみたいプロンプトを選んでください（編集も可能）",
     ["（←選んでください）"] + DEFAULT_PROMPTS,
@@ -46,8 +63,20 @@ prompt = st.text_input(
     value=st.session_state.prompt,
     disabled=generation_started
 )
-ss = st.session_state
 
+# プロンプト初期化ボタン
+st.button(
+    "🔄 プロンプト初期化",
+    on_click=init_prompt,
+    disabled=False
+)
+
+# 初期生成前のチェック
+if st.session_state.input_ids is None:
+    st.warning("まずはプロンプトを初期化してください。")
+    st.stop()
+
+# ─── パラメータスライダー ─────────────────────────────────
 temperature = st.slider(
     "Temperature",
     min_value=0.0,
@@ -77,7 +106,7 @@ ntop_k = st.slider(
 
 st.markdown("---")
 if generation_started:
-    st.markdown("🔒 生成開始後はパラメータ変更不可です。プロンプト初期化でリセット。")
+    st.markdown("🔒 生成開始後はパラメータ変更不可です。リセットで解除。")
 elif temperature < 1e-5:
     st.markdown("⚠️ Temperature=0 のため Top-p と Top-K は無効です")
 elif ntop_p < 1.0:
@@ -85,85 +114,111 @@ elif ntop_p < 1.0:
 else:
     st.markdown("⚠️ Top-p は現在無効です（Top-K 有効）")
 
-if st.button("🔄 プロンプト初期化"):
-    ss.input_ids = tokenizer.encode(ss.prompt, return_tensors="pt")
-    ss.generated_tokens = []
-    ss.steps = []
-    ss.step_index = 0
-    ss.prompt_initialized = False
-    ss.head_select = "Average"
-
-if ss.input_ids is None:
-    st.warning("まずはプロンプトを初期化してください。")
-    st.stop()
-
 chart_placeholder = st.empty()
 attention_placeholder = st.empty()
 
-if st.button("▶️ トークン生成"):
+# ─── トークン生成のコールバック ─────────────────────────────
+def do_generate(temp, top_p, top_k):
+    ss = st.session_state
     result = generate_step(
         ss.input_ids,
         model,
         tokenizer,
-        temperature,
-        ntop_p,
-        ntop_k,
+        temp,
+        top_p,
+        top_k
     )
     ss.input_ids = result["input_ids"]
     ss.steps.append(result["step_data"])
     ss.step_index = len(ss.steps) - 1
+    if not explore_mode:
+        ss.lock_params = True
 
-if ss.steps:
+# ─── トークン生成のコールバック ─────────────────────────────
+
+def do_generate(temp, top_p, top_k):
+    ss = st.session_state
+    result = generate_step(
+        ss.input_ids,
+        model,
+        tokenizer,
+        temp,
+        top_p,
+        top_k
+    )
+    ss.input_ids = result["input_ids"]
+    ss.steps.append(result["step_data"])
+    ss.step_index = len(ss.steps) - 1
+    if not explore_mode:
+        ss.lock_params = True
+
+# トークン生成ボタン
+st.button(
+    "▶️ トークン生成",
+    on_click=do_generate,
+    args=(temperature, ntop_p, ntop_k),
+    disabled=False
+)
+
+# ─── ステップナビゲーションと可視化と可視化 ─────────────────────────
+if st.session_state.steps:
+    ss = st.session_state
     idx = ss.step_index
     step = ss.steps[idx]
 
     c1, _, c3 = st.columns([1, 2, 1])
-    c1.button("← 前へ", on_click=lambda: ss.update(step_index=max(ss.step_index - 1, 0)), key="prev_button", disabled=(idx == 0))
-    c3.button("次へ →", on_click=lambda: ss.update(step_index=min(ss.step_index + 1, len(ss.steps) - 1)), key="next_button", disabled=(idx == len(ss.steps) - 1))
-
+    c1.button(
+        "← 前へ",
+        on_click=lambda: ss.update(step_index=max(ss.step_index-1,0)),
+        disabled=(idx==0),
+        key="prev"
+    )
+    c3.button(
+        "次へ →",
+        on_click=lambda: ss.update(step_index=min(ss.step_index+1,len(ss.steps)-1)),
+        disabled=(idx==len(ss.steps)-1),
+        key="next"
+    )
     st.markdown(f"**Step {idx+1}/{len(ss.steps)}**")
 
+    # Top-K グラフ
     if temperature < 1e-5:
-        topk_title = "Top-1 (Greedy decoding)"
-        topk_limit = 1
+        title = "Top-1 (Greedy decoding)"
+        limit = 1
     elif ntop_p < 1.0:
-        topk_title = f"Top-p Distribution (p={ntop_p:.2f})"
-        topk_limit = 10
+        title = f"Top-p Distribution (p={ntop_p:.2f})"
+        limit = 10
     else:
-        topk_title = f"Top-K Distribution (k={ntop_k})"
-        topk_limit = ntop_k
-
+        title = f"Top-K Distribution (k={ntop_k})"
+        limit = ntop_k
     fig = plot_topk(
         tokens=step["tokens"],
         values=step["values"],
         ids=step["ids"],
         chosen=step["chosen"],
-        top_k=topk_limit,
+        top_k=limit,
         temperature=temperature,
-        title=topk_title
+        title=title
     )
     chart_placeholder.pyplot(fig)
 
+    # Attention ヒートマップ
     attn = step["attn"]
     if attn.ndim == 2:
-        attn = attn[np.newaxis, ...]
-    num_heads = attn.shape[0]
-    options = ["Average"] + [f"Head {i}" for i in range(num_heads)]
-    sel = st.selectbox("Attention Head を選択", options, key="head_select", index=options.index(ss.head_select))
-
+        attn = attn[np.newaxis,...]
+    options = ["Average"] + [f"Head {i}" for i in range(attn.shape[0])]
+    sel = st.selectbox(
+        "Attention Head を選択",
+        options,
+        key="head_select",
+        index=options.index(ss.head_select)
+    )
     if sel != ss.head_select:
         ss.head_select = sel
+    mat = attn.mean(axis=0) if sel == "Average" else attn[int(sel.split()[1])]
+    heat = plot_attention(mat, step["all_toks"], title=sel)
+    attention_placeholder.pyplot(heat, clear_figure=False)
 
-    if sel == "Average":
-        attn_to_plot = attn.mean(axis=0)
-        title = "Average"
-    else:
-        head_idx = int(sel.split()[1])
-        attn_to_plot = attn[head_idx]
-        title = sel
-
-    attn_fig = plot_attention(attn_to_plot, step["all_toks"], title=title)
-    attention_placeholder.pyplot(attn_fig, clear_figure=False)
-
+# ─── 最終出力文表示 ───────────────────────────────────────
 st.markdown("### 🧠 最終的な出力文")
-st.write(tokenizer.decode(ss.input_ids[0], skip_special_tokens=True))
+st.write(tokenizer.decode(st.session_state.input_ids[0], skip_special_tokens=True))
