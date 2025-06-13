@@ -1,1 +1,4 @@
 # llm-visualizer-streamlit
+tokensに新トークンが含まれていると勘違いて4時間ぐらい格闘した
+含まれていない場合sttentionのラベル付けでずれが生じる
+generatorのall_toksに注意
