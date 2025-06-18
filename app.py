@@ -27,10 +27,16 @@ for key, default in [
 # ─── 初期プロンプト自動適用関数 ────────────────────────────
 def init_with_template():
     state.prompt = state.prompt_selector
+    # state.prompt_input = state.prompt_selector
     state.input_ids = tokenizer.encode(state.prompt, return_tensors="pt").to(device)
     state.steps = []
     state.step_index = 0
     state.lock_params = False
+
+def on_template_change():
+    state.prompt_input = state.prompt_selector  # テンプレート選択時のみカスタム入力に反映
+    init_with_template()
+
 
 def init_with_custom():
     state.prompt = state.prompt_input
@@ -59,11 +65,11 @@ st.selectbox(
     index=DEFAULT_PROMPTS.index(state.prompt) if state.prompt in DEFAULT_PROMPTS else 0,
     key="prompt_selector",
     disabled=locked,
-    on_change=init_with_template
+    on_change=on_template_change
 )
 st.text_input(
     "または自分で入力",
-    # value=state.prompt,
+    value=state.prompt,
     key="prompt_input",
     disabled=locked,
     on_change=init_with_custom
