@@ -20,19 +20,19 @@ for key, default in [
         state[key] = default
 
 # ─── モデルロード ─────────────────────────────────────────
-model, tokenizer = load_model()
+model, tokenizer, device = load_model()
 
 # ─── 初期プロンプト自動適用関数 ────────────────────────────
 def init_with_template():
     state.prompt = state.prompt_selector
-    state.input_ids = tokenizer.encode(state.prompt, return_tensors="pt")
+    state.input_ids = tokenizer.encode(state.prompt, return_tensors="pt").to(device)
     state.steps = []
     state.step_index = 0
     state.lock_params = False
 
 def init_with_custom():
     state.prompt = state.prompt_input
-    state.input_ids = tokenizer.encode(state.prompt, return_tensors="pt")
+    state.input_ids = tokenizer.encode(state.prompt, return_tensors="pt").to(device)
     state.steps = []
     state.step_index = 0
     state.lock_params = False
@@ -114,7 +114,7 @@ def generate_and_lock():
     prev_sel = state.get(f"head_select_{state.step_index}", "Average")
     result = generate_step(
         state.input_ids, model, tokenizer,
-        temperature, ntop_p, ntop_k
+        temperature, ntop_p, ntop_k, device
     )
     state.input_ids = result["input_ids"]
     state.steps.append(result["step_data"])
