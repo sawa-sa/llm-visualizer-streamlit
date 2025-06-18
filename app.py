@@ -4,6 +4,11 @@ from config import DEFAULT_PROMPTS, DEFAULT_TEMPERATURE, DEFAULT_TOP_P, DEFAULT_
 from model_loader import load_model
 from generator import generate_step
 from visualizer import plot_topk, plot_attention
+from devinfo import show_device_info
+
+
+device = show_device_info()
+model, tokenizer, device = load_model()
 
 # ─── セッションステートの初期化 ───────────────────────────
 state = st.session_state
@@ -20,7 +25,7 @@ for key, default in [
         state[key] = default
 
 # ─── モデルロード ─────────────────────────────────────────
-model, tokenizer, device = load_model()
+#  model, tokenizer, device = load_model()
 
 # ─── 初期プロンプト自動適用関数 ────────────────────────────
 def init_with_template():
