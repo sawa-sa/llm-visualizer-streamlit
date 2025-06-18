@@ -24,9 +24,6 @@ for key, default in [
     if key not in state:
         state[key] = default
 
-# ─── モデルロード ─────────────────────────────────────────
-#  model, tokenizer, device = load_model()
-
 # ─── 初期プロンプト自動適用関数 ────────────────────────────
 def init_with_template():
     state.prompt = state.prompt_selector
@@ -66,7 +63,7 @@ st.selectbox(
 )
 st.text_input(
     "または自分で入力",
-    value=state.prompt,
+    # value=state.prompt,
     key="prompt_input",
     disabled=locked,
     on_change=init_with_custom
@@ -181,7 +178,6 @@ if state.steps:
     sel = st.selectbox(
         "Attention Head",
         options,
-        index=options.index(state.get(key, "Average")),
         key=key
     )
     mat = attn.mean(axis=0) if sel == "Average" else attn[int(sel.split()[1])]
