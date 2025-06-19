@@ -23,9 +23,12 @@ GPU環境でのローカル実行を前提としており、モデルは `gpt2-m
 
 ## 対応環境
 
-- Python 3.8 以上
-- CPU, GPU対応
+- Python 3.10 推奨
+- CPU / GPU（CUDA対応）両方で動作可能  
+  ※ GPU（NVIDIA）を使用することで高速化が可能です。GPUがない環境では自動的にCPUが使用されます。
 
+⚠️ 注意：
+現在の実装は PyTorch の `cuda` デバイスに依存しており、AMD/Intel GPU や CPU 環境では動作しません。
 
 ## 想定ユースケース
 

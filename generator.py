@@ -62,6 +62,8 @@ def generate_step(
 
 
 
+
+
         attn = outputs.attentions[-1][0].cpu().numpy()  # shape: (num_heads, seq_len, seq_len)
 
         all_toks = [tokenizer.decode([i]).strip() for i in new_input_ids[0].tolist()]
@@ -75,5 +77,6 @@ def generate_step(
                 "chosen": chosen_id,
                 "attn": attn,
                 "all_toks": all_toks,
+                "raw_logits": raw_logits.squeeze().tolist()  # 全トークンに対するスコア
             },
         }
