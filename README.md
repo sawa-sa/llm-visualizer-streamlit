@@ -1,11 +1,11 @@
 # LLM Visualizer Streamlit
 
 **LLM Visualizer Streamlit** は、大規模言語モデル（LLM）の生成挙動に影響を与える各種パラメータ（Temperature / Top-p / Top-k）を調整し、その出力結果や注意機構（Attention）を視覚的に観察できるツールです。  
-GPU環境でのローカル実行を前提としており、モデルは `gpt2-medium` に限定されています。
+GPUまたはCPU環境でのローカル実行を前提としており、モデルは `gpt2-medium` に限定されています。
 
 ## 特徴
 
-- **`gpt2-medium` モデルに特化**  
+- **`gpt2-medium` モデル**  
   Hugging Face の `gpt2-medium` を使用し、他モデルの切り替え機能は搭載していません。
 
 - **出力パラメータの調整**  
